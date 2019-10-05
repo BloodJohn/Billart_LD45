@@ -1,9 +1,11 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 
 public class inputController : MonoBehaviour
 {
     public Camera camera;
     public Collider2D collider;
+    public List<Transform> targetList;
     private Vector3 velocity;
 
     private Vector3 mouseDown;
@@ -35,14 +37,23 @@ public class inputController : MonoBehaviour
             if (!ClickCollider())
             {
                 velocity = (mouseDown - Input.mousePosition) / 100;
-                Debug.Log(velocity.ToString());
+                Debug.Log(velocity.sqrMagnitude.ToString());
             }
         }
 
-        var pos = transform.localPosition;
-        pos += velocity * Time.deltaTime;
-        transform.localPosition = pos;
+        if (velocity.sqrMagnitude > 0)
+        {
+            var pos = transform.localPosition;
+            pos += velocity * Time.deltaTime;
+            transform.localPosition = pos;
 
+            var target = CheckCollision();
+            if (null != target)
+            {
+                targetList.Remove(target);
+                Destroy(target.gameObject);
+            }
+        }
     }
 
     private bool ClickCollider()
@@ -51,5 +62,22 @@ public class inputController : MonoBehaviour
         RaycastHit2D hit = Physics2D.GetRayIntersection(ray, Mathf.Infinity);
 
         return hit.collider == collider;
+    }
+
+    private Transform CheckCollision()
+    {
+        foreach (var target in targetList)
+        {
+            var dist2 = (target.position - transform.position).sqrMagnitude;
+
+            if (dist2 < 0.3f)
+            {
+                Debug.Log($"collision! {dist2}");
+                return target;
+            }
+
+        }
+
+        return null;
     }
 }

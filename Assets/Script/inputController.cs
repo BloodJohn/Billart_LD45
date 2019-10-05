@@ -3,10 +3,11 @@ using UnityEngine;
 
 public class inputController : MonoBehaviour
 {
-    public Camera camera;
-    public Collider2D collider;
-    public List<Transform> targetList;
+    private Camera camera;
+    private Collider2D collider;
+    public List<targetController> targetList;
     private Vector3 velocity;
+    private Plane[] planes;
 
     private Vector3 mouseDown;
 
@@ -14,6 +15,7 @@ public class inputController : MonoBehaviour
     {
         camera = Camera.main;
         collider = GetComponent<Collider2D>();
+        planes = GeometryUtility.CalculateFrustumPlanes(camera);
     }
 
     // Update is called once per frame
@@ -25,7 +27,6 @@ public class inputController : MonoBehaviour
             {
                 mouseDown = Input.mousePosition;
                 velocity = Vector3.zero;
-                Debug.Log("click!");
             }
             else
             {
@@ -37,7 +38,6 @@ public class inputController : MonoBehaviour
             if (!ClickCollider())
             {
                 velocity = (mouseDown - Input.mousePosition) / 100;
-                Debug.Log(velocity.sqrMagnitude.ToString());
             }
         }
 
@@ -47,12 +47,9 @@ public class inputController : MonoBehaviour
             pos += velocity * Time.deltaTime;
             transform.localPosition = pos;
 
-            var target = CheckCollision();
-            if (null != target)
-            {
-                targetList.Remove(target);
-                Destroy(target.gameObject);
-            }
+            CheckCollision();
+
+            CheckBounds();
         }
     }
 
@@ -64,20 +61,32 @@ public class inputController : MonoBehaviour
         return hit.collider == collider;
     }
 
-    private Transform CheckCollision()
+    private void CheckCollision()
     {
         foreach (var target in targetList)
         {
-            var dist2 = (target.position - transform.position).sqrMagnitude;
-
+            var dist2 = (target.transform.position - transform.position).sqrMagnitude;
             if (dist2 < 0.3f)
             {
-                Debug.Log($"collision! {dist2}");
-                return target;
+                target.Restart(velocity.magnitude);
+                Debug.Log($"kill {velocity.magnitude}");
+                return;
             }
-
         }
+    }
 
-        return null;
+    private void CheckBounds()
+    {
+        //если ушла за экран - поворачиваем обратно
+        if (GeometryUtility.TestPlanesAABB(planes, collider.bounds)) return;
+        var pos = transform.localPosition;
+        if (Mathf.Abs(pos.x) >= planes[0].distance)
+            velocity.x *= -1;
+
+        if (Mathf.Abs(pos.y) >= planes[2].distance)
+            velocity.y *= -1;
+
+        pos += velocity * Time.deltaTime * 5;
+        transform.localPosition = pos;
     }
 }
